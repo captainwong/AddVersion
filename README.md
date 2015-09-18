@@ -13,4 +13,4 @@ The file "VersionNo.ini" could be used in nsis bat file to make an installer.
 
 4.After build:
 	In visual studio, go through Project -- property -- build event -- after build -- command line:  
-	paste "$(ProjectDir)AfterBuild.bat" $(ProjectDir) $(TargetDir) b 1
+	"$(ProjectDir)AfterBuild.bat" $(ProjectDir) $(TargetDir)

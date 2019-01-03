@@ -2,12 +2,12 @@
 //
 
 #include "stdafx.h"
-#include "C:/dev/Global/deelx.h"
+#include <jlib/obsolete/deelx.h>
 
 /*
 1.After build:
-	Project -- property -- build event -- after build -- command line:  
-	"$(ProjectDir)AfterBuild.bat" $(ProjectDir) $(TargetDir) 
+	Project -- property -- build event -- after build -- command line:
+	"$(ProjectDir)AfterBuild.bat" $(ProjectDir) $(TargetDir)
 2.AddMajorVersion: $(ProjectDir)VersionNo.h $(ProjectDir)VersionNo.ini M 1
 3.AddMinorVersion: $(ProjectDir)VersionNo.h $(ProjectDir)VersionNo.ini m 1
 4.AddRevisionVersion: $(ProjectDir)VersionNo.h $(ProjectDir)VersionNo.ini r 1
@@ -27,26 +27,35 @@ int _tmain(int argc, _TCHAR* argv[])
 {
 	//TCHAR ab[] = "003f\x22abc";// hengbo - bo\x22abcdef\x5b\x5d - 03 - 02 - 11\x0a";
 	//int i = 0;
-	do{
+	do {
 		if (argc != 5)
 			break;
+
 		const TCHAR* h_file = argv[1];
 		const TCHAR* i_file = argv[2];
+
 		size_t section_len = wcslen(argv[3]);
 		if (section_len != 1)
 			break;
+
 		size_t number_len = wcslen(argv[4]);
 		if (number_len != 1)
 			break;
+
 		wchar_t section = argv[3][0];
 		int number = _wtoi(argv[4]);
-		if (number < 1 && number > 100)
+		if (!(0 <= number && number < 100))
 			break;
+
+		// 0 for decrement 1
+		if (number == 0) {
+			number = -1;
+		}
 
 		const char* pattern = "(\\d+)[,.]\\s?(\\d+)[,.]\\s?(\\d+)[,.]\\s?(\\d+)";
 		int inc_pos = 0;
 		bool true_command = true;
-		switch (section){
+		switch (section) {
 		case L'M':
 			inc_pos = 1;
 			break;
@@ -77,7 +86,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		return 0;
 	} while (0);
 
-	for (int i = 0; i < argc; i++){
+	for (int i = 0; i < argc; i++) {
 		wprintf(L"%s\n", argv[i]);
 	}
 	wprintf_s(L"\
@@ -87,12 +96,11 @@ section: M m r b\r\n\
 \tm: minor version\r\n\
 \tr: revision version\r\n\
 \tb: build times\r\n\
-number: add by number, range is 1~100.\r\n");
+number: add by number, 1~100 for version increment, 0 for version decrement 1.\r\n");
 	return 0;
 }
 
-int do_pattern(const TCHAR* file_path, const char* pattern, const char* shed,
-	int inc_pos, int inc_by)
+int do_pattern(const TCHAR* file_path, const char* pattern, const char* shed, int inc_pos, int inc_by)
 {
 	int oplen = 0;
 	FILE *file = NULL;
@@ -110,12 +118,13 @@ int do_pattern(const TCHAR* file_path, const char* pattern, const char* shed,
 	static CRegexpT <char> regexp;
 	regexp.Compile(pattern);
 	MatchResult result = regexp.Match(buffer);
-	while (result.IsMatched()){
+	while (result.IsMatched()) {
 		int start = result.GetStart();
 		int end = result.GetEnd();
 		int content_len = end - start;
 		if (content_len <= 0)
 			break;
+
 		char group1[32] = { 0 };
 		char group2[32] = { 0 };
 		char group3[32] = { 0 };
@@ -126,10 +135,11 @@ int do_pattern(const TCHAR* file_path, const char* pattern, const char* shed,
 		int group4_len = result.GetGroupEnd(4) - result.GetGroupStart(4);
 		if (group1_len <= 0 || group2_len <= 0 || group3_len <= 0 || group4_len <= 0)
 			break;
-		strncpy_s(group1, 32, buffer + result.GetGroupStart(1),	group1_len);
-		strncpy_s(group2, 32, buffer + result.GetGroupStart(2),	group2_len);
-		strncpy_s(group3, 32, buffer + result.GetGroupStart(3),	group3_len);
-		strncpy_s(group4, 32, buffer + result.GetGroupStart(4),	group4_len);
+
+		strncpy_s(group1, 32, buffer + result.GetGroupStart(1), group1_len);
+		strncpy_s(group2, 32, buffer + result.GetGroupStart(2), group2_len);
+		strncpy_s(group3, 32, buffer + result.GetGroupStart(3), group3_len);
+		strncpy_s(group4, 32, buffer + result.GetGroupStart(4), group4_len);
 		int number1 = atoi(group1);
 		int number2 = atoi(group2);
 		int number3 = atoi(group3);
@@ -137,31 +147,28 @@ int do_pattern(const TCHAR* file_path, const char* pattern, const char* shed,
 
 		char* result_content = new char[content_len * 2];
 		memset(result_content, 0, content_len * 2);
-		if (inc_pos == 1){
-			number1++;
+		if (inc_pos == 1) {
+			number1+= inc_by;
 			number2 = 0;
 			number3 = 0;
-		}
-		else if (inc_pos == 2){
-			number2++;
+		} else if (inc_pos == 2) {
+			number2+= inc_by;
 			number3 = 0;
-		}
-		else if (inc_pos == 3){
-			number3++;
-		}
-		else if (inc_pos == 4){
-			number4++;
+		} else if (inc_pos == 3) {
+			number3+= inc_by;
+		} else if (inc_pos == 4) {
+			number4+= inc_by;
 		}
 
 		sprintf_s(result_content, content_len * 2, "%d%s%d%s%d%s%d",
 			number1, shed, number2, shed,
 			number3, shed, number4);
 		printf_s("new version: %s\n", result_content);
-		
+
 		char* content = regexp.Replace(buffer, result_content);
 		delete[] result_content;
 		_tfopen_s(&file, file_path, L"wb");
-		if (file == NULL){
+		if (file == NULL) {
 			regexp.ReleaseString(content);
 			break;
 		}
